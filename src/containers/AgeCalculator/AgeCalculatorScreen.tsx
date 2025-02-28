@@ -99,7 +99,7 @@ const AgeCalculatorScreen = (props: any) => {
           />
         }
         inputStyle={{backgroundColor: colors.white}}
-        contentStyle={{marginLeft: isAndroid ? wp(4) : 0, color: colors.black}}
+        contentStyle={{color: colors.black}}
       />
     </View>
   );
