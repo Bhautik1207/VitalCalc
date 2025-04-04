@@ -7,12 +7,11 @@ import {
   View,
   StyleSheet,
   TextInput as TextInputR,
-  Modal,
 } from 'react-native';
 import {AnimatedCircularProgress} from 'react-native-circular-progress';
 import {Circle} from 'react-native-svg';
-import {TextInput} from 'react-native-paper';
-import {normalize, wp, hp} from '../../styles/responsiveScreen';
+import {Divider, Menu, TextInput} from 'react-native-paper';
+import {normalize, wp, hp, isAndroid} from '../../styles/responsiveScreen';
 import SvgIcons from '../../assets/SvgIcons';
 import colors from '../../assets/colors';
 
@@ -20,7 +19,7 @@ const bmiCategories = [
   {label: 'Very Severely Underweight', range: '< 16', color: colors.skyMist},
   {label: 'Severely Underweight', range: '16.0-16.9', color: colors.oceanWave},
   {label: 'Underweight', range: '17.0-18.4', color: colors.azureGlow},
-  {label: 'Normal', range: '18.5-24.9', color: colors.leafGreen},
+  {label: 'Normal weight', range: '18.5-24.9', color: colors.leafGreen},
   {label: 'Overweight', range: '25.0-29.9', color: colors.goldenSun},
   {label: 'Obese I', range: '30.0-34.9', color: colors.sunsetOrange},
   {label: 'Obese II', range: '35.0-39.9', color: colors.emberGlow},
@@ -40,16 +39,27 @@ const BMICalculatorScreen = () => {
   const [bmi, setBmi] = useState<any>(0);
   const [category, setCategory] = useState<string>('');
   const [showInfo, setShowInfo] = useState<boolean>(false);
+  const [heightType, setHeightType] = useState<string>('ft');
+  const [cm, setCm] = useState<string>('');
+  const [showMenu, setShowMenu] = useState<boolean>(false);
 
   const calculateBMI = () => {
-    if (!feet || !inches || !weight) return;
+    let heightInMeters: any;
 
-    const totalInches = parseFloat(feet) * 12 + parseFloat(inches);
-    const heightInMeters = totalInches * 0.0254;
+    if (heightType === 'ft') {
+      if (!feet || !inches || !weight) return;
+      const totalInches = parseFloat(feet) * 12 + parseFloat(inches); 
+      heightInMeters = totalInches * 0.0254; 
+    }
+    else if (heightType === 'cm') {
+      if (!cm || !weight) return;
+      heightInMeters = parseFloat(cm) / 100;
+    }
+
     const bmiValue = parseFloat(weight) / (heightInMeters * heightInMeters);
-
-    setBmi(bmiValue.toFixed(2));
-    setCategory(getBMICategory(bmiValue));
+    const finalValue: any = bmiValue.toFixed(1);
+    setBmi(finalValue);
+    setCategory(getBMICategory(finalValue));
   };
 
   const getBMICategory = (bmi: number) => {
@@ -86,8 +96,10 @@ const BMICalculatorScreen = () => {
     setWeight('');
     setFeet('');
     setInches('');
+    setCm('');
     setBmi(0);
     setCategory('');
+    setHeightType('ft');
     setIsMale(true);
   };
 
@@ -123,11 +135,11 @@ const BMICalculatorScreen = () => {
               </Text>
             )}
           </AnimatedCircularProgress>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.infoView}
             onPress={() => setShowInfo(true)}>
             <SvgIcons.Info width={wp(6)} height={wp(6)} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
         {category ? (
           <Text style={[styles.resultText, {color: getColorByBMI(bmi)}]}>
@@ -186,56 +198,131 @@ const BMICalculatorScreen = () => {
           </View>
         </View>
         <View style={[styles.rowContainer, {marginTop: hp(1)}]}>
-          <View style={{width: '47%'}}>
-            <TextInput
-              ref={feetRef}
-              label={'Feet'}
-              value={feet}
-              onChangeText={text => {
-                if (text === '' || /^[1-9]$/.test(text)) {
-                  setFeet(text);
-                }
+          {heightType === 'ft' ? (
+            <>
+              <View style={{width: '38%'}}>
+                <TextInput
+                  ref={feetRef}
+                  label={'Feet'}
+                  value={feet}
+                  onChangeText={text => {
+                    if (text === '' || /^[1-9]$/.test(text)) {
+                      setFeet(text);
+                    }
+                  }}
+                  mode="outlined"
+                  placeholderTextColor={colors.neutral40}
+                  outlineColor={colors.neutral20}
+                  activeOutlineColor={colors.primary}
+                  outlineStyle={{borderWidth: 1}}
+                  returnKeyType={'next'}
+                  keyboardType="numeric"
+                  onSubmitEditing={() => inchRef?.current.focus()}
+                  style={{backgroundColor: colors.white}}
+                  textColor={colors.neutralDark}
+                  theme={{
+                    roundness: normalize(10),
+                  }}
+                />
+              </View>
+              <View style={{width: '38%'}}>
+                <TextInput
+                  ref={inchRef}
+                  label={'Inch'}
+                  value={inches}
+                  onChangeText={text => {
+                    if (text === '' || /^(1[0-2]|[0-9])$/.test(text)) {
+                      setInches(text);
+                    }
+                  }}
+                  mode="outlined"
+                  placeholderTextColor={colors.neutral40}
+                  outlineColor={colors.neutral20}
+                  activeOutlineColor={colors.primary}
+                  outlineStyle={{borderWidth: 1}}
+                  returnKeyType={'done'}
+                  keyboardType="numeric"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                  style={{backgroundColor: colors.white}}
+                  textColor={colors.neutralDark}
+                  theme={{
+                    roundness: normalize(10),
+                  }}
+                />
+              </View>
+            </>
+          ) : (
+            <View style={{width: '75%'}}>
+              <TextInput
+                ref={feetRef}
+                label={'Cm'}
+                value={cm}
+                onChangeText={text => {
+                  if (
+                    text === '' ||
+                    /^(?:[1-9]\d?|1\d{2}|2[0-9]{2}|300)$/.test(text)
+                  ) {
+                    setCm(text);
+                  }
+                }}
+                mode="outlined"
+                placeholderTextColor={colors.neutral40}
+                outlineColor={colors.neutral20}
+                activeOutlineColor={colors.primary}
+                outlineStyle={{borderWidth: 1}}
+                returnKeyType={'done'}
+                keyboardType="numeric"
+                onSubmitEditing={() => Keyboard.dismiss()}
+                style={{backgroundColor: colors.white}}
+                textColor={colors.neutralDark}
+                theme={{
+                  roundness: normalize(10),
+                }}
+              />
+            </View>
+          )}
+          <Menu
+            visible={showMenu}
+            onDismiss={() => setShowMenu(false)}
+            contentStyle={styles.menuItemContent}
+            anchor={
+              <TouchableOpacity
+                style={styles.menuView}
+                onPress={() => {
+                  setShowMenu(!showMenu);
+                }}>
+                <Text
+                  style={[
+                    styles.title,
+                    {color: colors.white, marginTop: 0, marginRight: wp(0.5)},
+                  ]}>
+                  {heightType}
+                </Text>
+                <SvgIcons.DownArrow width={wp(6)} height={wp(5)} />
+              </TouchableOpacity>
+            }>
+            <Menu.Item
+              onPress={() => {
+                setHeightType('ft');
+                setShowMenu(false);
               }}
-              mode="outlined"
-              placeholderTextColor={colors.neutral40}
-              outlineColor={colors.neutral20}
-              activeOutlineColor={colors.primary}
-              outlineStyle={{borderWidth: 1}}
-              returnKeyType={'next'}
-              keyboardType="numeric"
-              onSubmitEditing={() => inchRef?.current.focus()}
-              style={{backgroundColor: colors.white}}
-              textColor={colors.neutralDark}
-              theme={{
-                roundness: normalize(10),
-              }}
+              title="ft"
+              style={styles.menuItem}
+              rippleColor={'transparent'}
+              titleStyle={{color: colors.neutralDark}}
             />
-          </View>
-          <View style={{width: '47%'}}>
-            <TextInput
-              ref={inchRef}
-              label={'Inch'}
-              value={inches}
-              onChangeText={text => {
-                if (text === '' || /^(1[0-2]|[0-9])$/.test(text)) {
-                  setInches(text);
-                }
+            <Divider />
+            <Menu.Item
+              onPress={() => {
+                setHeightType('cm');
+                setShowMenu(false);
               }}
-              mode="outlined"
-              placeholderTextColor={colors.neutral40}
-              outlineColor={colors.neutral20}
-              activeOutlineColor={colors.primary}
-              outlineStyle={{borderWidth: 1}}
-              returnKeyType={'done'}
-              keyboardType="numeric"
-              onSubmitEditing={() => Keyboard.dismiss()}
-              style={{backgroundColor: colors.white}}
-              textColor={colors.neutralDark}
-              theme={{
-                roundness: normalize(10),
-              }}
+              title="cm"
+              style={styles.menuItem}
+              rippleColor={'transparent'}
+              titleStyle={{color: colors.neutralDark}}
             />
-          </View>
+          </Menu>
         </View>
         <View style={[styles.radioContainer, {marginTop: hp(1.5)}]}>
           <TouchableOpacity
@@ -280,7 +367,56 @@ const BMICalculatorScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-      <Modal transparent visible={showInfo} animationType="fade">
+      <View style={{marginHorizontal: wp(4)}}>
+        {bmiCategories.map(({label, range, color}, i) => (
+          <View key={i} style={styles.ageDetails}>
+            <View style={styles.rowContainer}>
+              <View style={[styles.badge, {backgroundColor: color}]} />
+              <Text
+                style={[
+                  styles.selectedDate,
+                  {
+                    color:
+                      bmi != 0 && getBMICategory(bmi) == label
+                        ? color
+                        : colors.black,
+                    fontWeight:
+                      bmi != 0 && getBMICategory(bmi) == label
+                        ? 'bold'
+                        : 'normal',
+                    fontSize:
+                      bmi != 0 && getBMICategory(bmi) == label
+                        ? normalize(18)
+                        : normalize(16),
+                  },
+                ]}>
+                {label}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.selectedDate,
+                {
+                  color:
+                    bmi != 0 && getBMICategory(bmi) == label
+                      ? color
+                      : colors.black,
+                  fontWeight:
+                    bmi != 0 && getBMICategory(bmi) == label
+                      ? 'bold'
+                      : 'normal',
+                  fontSize:
+                    bmi != 0 && getBMICategory(bmi) == label
+                      ? normalize(18)
+                      : normalize(16),
+                },
+              ]}>
+              {range}
+            </Text>
+          </View>
+        ))}
+      </View>
+      {/* <Modal transparent visible={showInfo} animationType="fade">
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
             <View style={[styles.rowContainer, {marginBottom: hp(1.5)}]}>
@@ -313,7 +449,7 @@ const BMICalculatorScreen = () => {
             ))}
           </View>
         </View>
-      </Modal>
+      </Modal> */}
     </ScrollView>
   );
 };
@@ -339,33 +475,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cardContainer: {
-    backgroundColor: colors.white,
-    borderRadius: normalize(10),
-    marginTop: hp(1.5),
-    shadowColor: colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 1.5,
-    elevation: 5,
-  },
   title: {
     fontSize: normalize(16),
     fontWeight: 'bold',
     marginTop: hp(1),
     color: colors.neutralDark,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: hp(1),
-    backgroundColor: colors.white,
-    padding: wp(3),
-    borderRadius: normalize(5),
   },
   calculateBtn: {
     backgroundColor: colors.primary,
@@ -377,12 +491,6 @@ const styles = StyleSheet.create({
     width: '47%',
     flexDirection: 'row',
     justifyContent: 'center',
-  },
-  btnText: {
-    fontSize: normalize(16),
-    fontWeight: '500',
-    color: colors.black,
-    paddingLeft: wp(1.5),
   },
   ageDetails: {
     flexDirection: 'row',
@@ -449,5 +557,25 @@ const styles = StyleSheet.create({
     marginBottom: hp(2),
     fontWeight: 'bold',
     marginTop: hp(1),
+  },
+  menuItem: {
+    height: hp(4),
+  },
+  menuView: {
+    backgroundColor: colors.primary,
+    borderRadius: normalize(8),
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: wp(2),
+    height: isAndroid ? hp(6.2) : hp(5.7),
+    // flex: 1,
+  },
+  menuItemContent: {
+    backgroundColor: colors.white,
+    marginTop: hp(7),
+    width: wp(20),
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
 });

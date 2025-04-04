@@ -1,9 +1,7 @@
 import {
   Alert,
-  Button,
   Image,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,14 +11,16 @@ import {
 import React, {useState} from 'react';
 import DateTimePicker, {getDefaultStyles} from 'react-native-ui-datepicker';
 import moment from 'moment';
-import {hp, isAndroid, normalize, wp} from '../../styles/responsiveScreen';
+import {TextInput} from 'react-native-paper';
+import MaskInput from 'react-native-mask-input';
+import {hp, normalize, wp} from '../../styles/responsiveScreen';
 import SvgIcons from '../../assets/SvgIcons';
 import colors from '../../assets/colors';
-import FloatBottomSheet from '../../components/FloatingBottomSheet';
 
 const AgeCalculatorScreen = (props: any) => {
-  const [birthdate, setBirthDate] = useState<Date | null>(new Date());
-  const [todayDate, setTodayDate] = useState<Date | null>(new Date());
+  const today = moment().format('DD-MM-YYYY');
+  const [birthDate, setBirthDate] = useState(today);
+  const [todayDate, setTodayDate] = useState(today);
   const [showPicker, setShowPicker] = useState(false);
   const [type, setType] = useState('');
   const [ageYears, setAgeYears] = useState<any>('0');
@@ -32,14 +32,28 @@ const AgeCalculatorScreen = (props: any) => {
   const [totalSeconds, setTotalSeconds] = useState<any>('0');
 
   const calculateAge = () => {
-    if (!birthdate || !todayDate) return;
+    if (!birthDate || !todayDate) return;
 
-    const birthDate = moment(birthdate).startOf('day');
-    const targetDate = moment(todayDate).startOf('day');
+    const bDate = moment(birthDate, 'DD-MM-YYYY').startOf('day');
+    const targetDate = moment(todayDate, 'DD-MM-YYYY').startOf('day');
 
-    if (!birthDate.isValid() || !targetDate.isValid()) return;
+    if (!bDate.isValid()) {
+      Alert.alert(
+        'Invalid Date of Birth',
+        'Please enter a valid date of birth.',
+      );
+      return;
+    }
 
-    if (targetDate.isBefore(birthDate)) {
+    if (!targetDate.isValid()) {
+      Alert.alert("Invalid Today's Date", "Please enter a valid today's date.");
+      return;
+    }
+
+    console.log('birthDate: ', birthDate, todayDate);
+    console.log('targetDate: ', bDate, targetDate);
+
+    if (targetDate.isBefore(bDate)) {
       Alert.alert(
         'Invalid Date',
         'Age at Date must be after the Date of Birth.',
@@ -47,19 +61,28 @@ const AgeCalculatorScreen = (props: any) => {
       return;
     }
 
-    const years = targetDate.diff(birthDate, 'years');
-    birthDate.add(years, 'years');
-    const months = targetDate.diff(birthDate, 'months');
-    birthDate.add(months, 'months');
-    const days = targetDate.diff(birthDate, 'days');
+    const tempDate = bDate.clone();
 
-    const totalMonths = targetDate.diff(moment(birthdate), 'months');
-    const totalDays = targetDate.diff(moment(birthdate), 'days');
+    const years = targetDate.diff(tempDate, 'years');
+    tempDate.add(years, 'years');
+    const months = targetDate.diff(tempDate, 'months');
+    tempDate.add(months, 'months');
+    const days = targetDate.diff(tempDate, 'days');
+
+    const totalDays = targetDate.diff(bDate, 'days');
     const totalWeeks = Math.floor(totalDays / 7);
     const remainingDays = totalDays % 7;
     const totalHours = totalDays * 24;
     const totalMinutes = totalHours * 60;
     const totalSeconds = totalMinutes * 60;
+
+    console.log(`Age: ${years} years, ${months} months, ${days} days`);
+    console.log(
+      `Total Days: ${totalDays}, Weeks: ${totalWeeks} + ${remainingDays} days`,
+    );
+    console.log(
+      `Total Hours: ${totalHours}, Minutes: ${totalMinutes}, Seconds: ${totalSeconds}`,
+    );
 
     setAgeYears(years);
     setAgeMonths(months);
@@ -71,8 +94,8 @@ const AgeCalculatorScreen = (props: any) => {
   };
 
   const resetValues = () => {
-    setBirthDate(new Date());
-    setTodayDate(new Date());
+    setBirthDate(today);
+    setTodayDate(today);
     setAgeYears('0');
     setAgeMonths('0');
     setAgeDays('0');
@@ -82,25 +105,89 @@ const AgeCalculatorScreen = (props: any) => {
     setTotalSeconds('0');
   };
 
+  const cleanDate = (masked: string, type: 'birthDay' | 'today') => {
+    let parts = masked.split('-');
+    let day = parts[0] || '';
+    let month = parts[1] || '';
+    let year = parts[2] || '';
+
+    if (day.length === 2 && (parseInt(day) < 1 || parseInt(day) > 31)) {
+      day = day.slice(0, 1);
+    }
+
+    if (month.length === 2 && (parseInt(month) < 1 || parseInt(month) > 12)) {
+      month = month.slice(0, 1);
+    }
+
+    if (year.length === 4 && (parseInt(year) < 1900 || parseInt(year) > 2099)) {
+      year = year.slice(0, 3);
+    }
+
+    const newDate = [day, month, year].filter(Boolean).join('-');
+
+    type === 'birthDay' ? setBirthDate(newDate) : setTodayDate(newDate);
+  };
+
+  const handleDateSelect = ({date}: any) => {
+    console.log('date: ', date);
+    const formattedDate = moment(date).format('DD-MM-YYYY');
+    console.log('formattedDate: ', formattedDate);
+    if (type === 'birthDay') {
+      setBirthDate(formattedDate);
+    } else {
+      setTodayDate(formattedDate);
+    }
+    setShowPicker(false);
+  };
+
+  const getParsedDate = (dateString: string) => {
+    const parsedDate = moment(dateString, 'DD-MM-YYYY', true);
+    return parsedDate.isValid() ? parsedDate.toDate() : new Date();
+  };
+
   const renderDatePicker = (label: string, date: any, type: string) => (
-    <View style={{marginBottom: hp(1.5)}}>
-      <FloatBottomSheet
-        value={moment(date).format('DD - MM - YYYY')}
+    <View
+      style={{
+        marginBottom: hp(1.5),
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}>
+      <TextInput
         label={label}
-        bottomSheetPress={() => {
+        value={date}
+        placeholder="DD-MM-YYYY"
+        placeholderTextColor={colors.neutral40}
+        mode="outlined"
+        outlineColor={colors.neutral20}
+        activeOutlineColor={colors.primary}
+        outlineStyle={{borderWidth: 1}}
+        textColor={colors.neutralDark}
+        style={{
+          width: '100%',
+          backgroundColor: colors.white,
+        }}
+        render={props => (
+          <MaskInput
+            {...props}
+            keyboardType="number-pad"
+            placeholder="DD-MM-YYYY"
+            mask={[/\d/, /\d/, '-', /\d/, /\d/, '-', /\d/, /\d/, /\d/, /\d/]}
+            onChangeText={masked => cleanDate(masked, type)}
+            returnKeyType="done"
+            placeholderTextColor={colors.neutral40}
+          />
+        )}
+      />
+      <TouchableOpacity
+        style={{left: wp(-12), top: hp(0.5), padding: wp(2)}}
+        onPress={() => {
+          console.log('type: ', type);
           setType(type);
           setShowPicker(true);
-        }}
-        icon={
-          <SvgIcons.Calendar
-            width={wp(6)}
-            height={wp(6)}
-            style={{left: wp(-10), top: hp(0.5)}}
-          />
-        }
-        inputStyle={{backgroundColor: colors.white}}
-        contentStyle={{color: colors.black}}
-      />
+        }}>
+        <SvgIcons.Calendar width={wp(6)} height={wp(6)} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -120,8 +207,8 @@ const AgeCalculatorScreen = (props: any) => {
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
       <View style={{marginHorizontal: wp(4)}}>
-        {renderDatePicker('Date of Birth', birthdate, 'birthDay')}
-        {renderDatePicker('Age at the Date of', todayDate, 'today')}
+        {renderDatePicker("Today's Date", todayDate, 'today')}
+        {renderDatePicker('Date of Birth', birthDate, 'birthDay')}
 
         <View style={[styles.rowContainer, {marginTop: hp(1)}]}>
           <TouchableOpacity style={styles.calculateBtn} onPress={calculateAge}>
@@ -170,11 +257,10 @@ const AgeCalculatorScreen = (props: any) => {
             <View style={styles.modalContent}>
               <DateTimePicker
                 mode="single"
-                date={type === 'birthDay' ? birthdate : todayDate}
-                onChange={({date}: any) => {
-                  type === 'birthDay' ? setBirthDate(date) : setTodayDate(date);
-                  setShowPicker(false);
-                }}
+                date={getParsedDate(
+                  type === 'birthDay' ? birthDate : todayDate,
+                )}
+                onChange={handleDateSelect}
                 components={{
                   IconPrev: (
                     <Image
@@ -253,7 +339,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     backgroundColor: colors.white,
@@ -263,15 +349,6 @@ const styles = StyleSheet.create({
     borderRadius: normalize(10),
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dateContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: hp(1),
-    backgroundColor: colors.white,
-    padding: wp(3),
-    borderRadius: normalize(5),
   },
   title: {
     fontSize: normalize(14),
